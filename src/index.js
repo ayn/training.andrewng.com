@@ -121,7 +121,9 @@ export async function refresh(env, fetcher = fetch) {
     if (new URL(env.SOURCE_URL).protocol !== 'https:') throw new Error('HTTPS required');
     failure = 'FETCH_FAILED';
     const response = await fetcher(env.SOURCE_URL, {
-      redirect: 'error', signal: AbortSignal.timeout(30_000),
+      // workerd supports manual/follow, but not the standard Fetch "error" mode.
+      // Manual still rejects redirects below through the response.ok check.
+      redirect: 'manual', signal: AbortSignal.timeout(30_000),
       headers: { Accept: 'text/calendar', 'User-Agent': 'CalendarArchive/1.0' },
     });
     if (!response.ok) {
