@@ -149,7 +149,7 @@ test('a successful refresh fetches the source and records the upstream events', 
   let seen;
   await refresh(env, async (url, options) => { seen = { url, options }; return new Response(feed(event('fetched'))); });
   assert.equal(seen.url, env.SOURCE_URL);
-  assert.equal(seen.options.redirect, 'error');
+  assert.equal(seen.options.redirect, 'manual');
   assert.equal(components(await renderCalendar(env.DB))[0].getFirstPropertyValue('uid'), 'fetched');
   const status = await env.DB.prepare('SELECT * FROM status').first();
   assert.ok(status.last_success);

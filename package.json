@@ -3,11 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test test/*.test.js",
+    "test": "wrangler deploy --dry-run --config wrangler.example.jsonc --outdir .wrangler/test-bundle && node --test test/*.test.js",
     "check": "node --check src/index.js",
     "dev": "wrangler dev",
     "deploy": "wrangler deploy"
   },
-  "dependencies": { "ical.js": "2.2.1" },
-  "devDependencies": { "wrangler": "^4.81.0" }
+  "dependencies": {
+    "ical.js": "2.2.1"
+  },
+  "devDependencies": {
+    "miniflare": "5.20261104.0-beta",
+    "wrangler": "^4.81.0"
+  }
 }
