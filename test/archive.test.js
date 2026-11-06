@@ -32,7 +32,7 @@ const envFor = DB => ({ DB, FEED_TOKEN: key, ADMIN_TOKEN: 'b'.repeat(43), SOURCE
 
 test('retains past and future events that fall out of a rolling feed', async () => {
   const db = database();
-  await ingest(db, feed(event('old'), event('future', 'Future run', 'DTEND;VALUE=DATE:20261102\r\n')), 100);
+  await ingest(db, feed(event('old'), event('future', 'Future run').replace('DTSTART;VALUE=DATE:20261101', 'DTSTART;VALUE=DATE:20261201')), 100);
   await ingest(db, feed(event('new')), 200);
   assert.deepEqual(components(await renderCalendar(db)).map(x => x.getFirstPropertyValue('uid')).sort(), ['future', 'new', 'old']);
 });
@@ -134,4 +134,38 @@ test('operator refresh requires a separate bearer token; subscriptions cannot wr
   for (const headers of [{}, { Authorization: `Bearer ${key}` }]) {
     assert.equal((await worker.fetch(new Request('https://example.org/admin/refresh', { method: 'POST', headers }), env)).status, 404);
   }
+});
+
+test('a successful refresh fetches the source and records the upstream events', async () => {
+  const env = envFor(database());
+  let seen;
+  await refresh(env, async (url, options) => { seen = { url, options }; return new Response(feed(event('fetched'))); });
+  assert.equal(seen.url, env.SOURCE_URL);
+  assert.equal(seen.options.redirect, 'error');
+  assert.equal(components(await renderCalendar(env.DB))[0].getFirstPropertyValue('uid'), 'fetched');
+  const status = await env.DB.prepare('SELECT * FROM status').first();
+  assert.ok(status.last_success);
+  assert.equal(status.last_error, null);
+});
+
+test('a SQL failure rolls back both snapshots and event updates', async () => {
+  const db = database();
+  await ingest(db, feed(event('original')), 100);
+  await db.prepare("CREATE TRIGGER refuse_bad BEFORE INSERT ON events WHEN NEW.uid = 'bad' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END").run();
+  await assert.rejects(() => ingest(db, feed(event('original', 'Edited'), event('bad')), 200));
+  assert.equal(components(await renderCalendar(db))[0].getFirstPropertyValue('summary'), 'Easy run');
+  assert.equal((await db.prepare('SELECT COUNT(*) AS n FROM snapshots').first()).n, 1);
+});
+
+test('operator import accepts ICS only with the distinct admin token and hides errors', async () => {
+  const env = envFor(database());
+  const headers = { Authorization: `Bearer ${env.ADMIN_TOKEN}` };
+  const request = body => new Request('https://example.org/admin/import', { method: 'POST', headers, body });
+  const r = await worker.fetch(request(feed(event('imported'))), env);
+  assert.equal(r.status, 200);
+  assert.equal((await r.json()).fetched_events, 1);
+  const bad = await worker.fetch(request('private error text'), env);
+  assert.equal(bad.status, 502);
+  assert.ok(!(await bad.text()).includes('private error text'));
+  assert.equal(components(await renderCalendar(env.DB)).length, 1);
 });
