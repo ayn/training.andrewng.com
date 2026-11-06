@@ -33,6 +33,8 @@ Generate two independent random tokens of at least 32 characters (for example wi
 
 The schedule makes 96 upstream requests per day. Calendar apps and services refresh subscriptions on their own schedules; this does not force Google Calendar to refresh every 15 minutes.
 
+Set `CALENDAR_NAME` in your deployment configuration to suggest a display name for the subscription. Some calendar clients keep their own name instead; renaming the subscription in the client does not change the feed URL or its contents.
+
 The subscription URL is `https://YOUR_DOMAIN/calendar/FEED_TOKEN.ics`. Add it as a calendar subscription in Apple Calendar, Fantastical, or Google Calendar. Anyone with the link can read the entire archive; treat it as a password. No Cloudflare Access login is required because calendar clients cannot normally perform one. Worker request logging is disabled by default to avoid recording capability URLs; also consider any account-wide logs/analytics you enable.
 
 - `GET /health`: public process liveness only, not upstream freshness.
