@@ -65,7 +65,7 @@ npm run check
 npx wrangler deploy --dry-run --config wrangler.example.jsonc
 ```
 
-Tests use synthetic calendars and the real SQLite migration/queries through a D1 interface adapter. They cover retention, updates, cancellations, recurrence exceptions, timezone/alarm preservation, invalid feed isolation, refresh ordering, private read-only access, and historical import deduplication. Wrangler's dry-run verifies the Worker bundle; test a deployment against real D1 before subscribing.
+Tests use synthetic calendars and the real SQLite migration/queries through a D1 interface adapter. They cover retention, updates, cancellations, recurrence exceptions, timezone/alarm preservation, invalid feed isolation, refresh ordering, private read-only access, and historical import deduplication. The test command also builds the Worker and runs a Miniflare/workerd test with D1 and a mocked upstream, exercising a complete refresh and redirect rejection in the production runtime. Test a deployment against real D1 before subscribing.
 
 MIT licensed. The RFC 5545 parser, ical.js, is MPL-2.0 licensed; see its package license. No personal training data is included in this repository.
 A persistent ICS calendar archive on Cloudflare Workers and D1. Retains events after they disappear from rolling feeds.
