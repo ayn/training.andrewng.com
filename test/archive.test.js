@@ -129,6 +129,14 @@ test('refresh rejects upstream errors, insecure sources and oversized bodies', a
   await assert.rejects(() => refresh(env, async () => new Response('x'.repeat(2_000_001))));
 });
 
+test('refresh status distinguishes upstream HTTP failures without leaking private details', async () => {
+  const env = envFor(database());
+  await assert.rejects(() => refresh(env, async () => new Response('private source details', { status: 403 })));
+  const state = await env.DB.prepare('SELECT last_error FROM status WHERE id = 1').first();
+  assert.match(state.last_error, /UPSTREAM_HTTP_403/);
+  assert.ok(!state.last_error.includes('private source details'));
+});
+
 test('operator refresh requires a separate bearer token; subscriptions cannot write', async () => {
   const env = envFor(database());
   for (const headers of [{}, { Authorization: `Bearer ${key}` }]) {

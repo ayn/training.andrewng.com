@@ -116,20 +116,28 @@ async function limitedText(response) {
 
 export async function refresh(env, fetcher = fetch) {
   const attempt = Date.now();
+  let failure = 'SOURCE_CONFIGURATION';
   try {
     if (new URL(env.SOURCE_URL).protocol !== 'https:') throw new Error('HTTPS required');
+    failure = 'FETCH_FAILED';
     const response = await fetcher(env.SOURCE_URL, {
       redirect: 'error', signal: AbortSignal.timeout(30_000),
       headers: { Accept: 'text/calendar', 'User-Agent': 'CalendarArchive/1.0' },
     });
-    if (!response.ok) throw new Error('Upstream request failed');
-    return await ingest(env.DB, await limitedText(response), attempt);
+    if (!response.ok) {
+      failure = `UPSTREAM_HTTP_${response.status}`;
+      throw new Error('Upstream request failed');
+    }
+    failure = 'SOURCE_BODY_INVALID';
+    const text = await limitedText(response);
+    failure = 'SOURCE_IMPORT_FAILED';
+    return await ingest(env.DB, text, attempt);
   } catch {
     // Never persist or log raw fetch/parser exceptions: they may contain the source URL.
     await env.DB.prepare(`INSERT INTO status (id, last_attempt, last_error) VALUES (1, ?, ?)
       ON CONFLICT(id) DO UPDATE SET last_attempt = excluded.last_attempt, last_error = excluded.last_error
       WHERE excluded.last_attempt >= COALESCE(status.last_attempt, 0)`)
-      .bind(attempt, 'Refresh failed; previous archive retained').run();
+      .bind(attempt, `Refresh failed (${failure}); previous archive retained`).run();
     throw new Error('Calendar refresh failed');
   }
 }

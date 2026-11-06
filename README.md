@@ -2,7 +2,7 @@
 
 A small Cloudflare Worker that turns a rolling ICS feed into a permanent calendar subscription. Originally built for training calendars that remove past workouts.
 
-Every hour it fetches one HTTPS feed, saves a snapshot in D1, and updates events by their original UID and recurrence identity. Events that disappear stay archived. Edits, moved dates, descriptions, recurrence exceptions, alarms, time zones, and explicit `STATUS:CANCELLED` values are preserved. No workout parsing or calendar-account credentials are needed.
+Every 15 minutes it fetches one HTTPS feed, saves a snapshot in D1, and updates events by their original UID and recurrence identity. Events that disappear stay archived. Edits, moved dates, descriptions, recurrence exceptions, alarms, time zones, and explicit `STATUS:CANCELLED` values are preserved. No workout parsing or calendar-account credentials are needed.
 
 ## Semantics
 
@@ -30,6 +30,8 @@ npm run deploy
 ```
 
 Generate two independent random tokens of at least 32 characters (for example with `openssl rand -hex 32`). Store them in your password manager and enter them at Wrangler's prompts. `SOURCE_URL` must be the full private HTTPS ICS URL, not an HTML calendar page. Redirects are rejected; use the final HTTPS URL. Secrets belong in Cloudflare secrets, not vars or Git. Local test credentials can use ignored `.dev.vars`.
+
+The schedule makes 96 upstream requests per day. Calendar apps and services refresh subscriptions on their own schedules; this does not force Google Calendar to refresh every 15 minutes.
 
 The subscription URL is `https://YOUR_DOMAIN/calendar/FEED_TOKEN.ics`. Add it as a calendar subscription in Apple Calendar, Fantastical, or Google Calendar. Anyone with the link can read the entire archive; treat it as a password. No Cloudflare Access login is required because calendar clients cannot normally perform one. Worker request logging is disabled by default to avoid recording capability URLs; also consider any account-wide logs/analytics you enable.
 
